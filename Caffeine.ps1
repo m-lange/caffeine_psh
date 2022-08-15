@@ -21,21 +21,44 @@ public class Caffeine
         jiggle.Start();
     }
 
-    public void JiggleMouse(object sender, EventArgs e)
+    public bool DisplayRequired
     {
-        INPUT input = new INPUT();
-        input.type = 0;
-        input.mi = new MOUSEINPUT();
-        input.mi.dx = 0;
-        input.mi.dy = 0;
-        input.mi.mouseData = 0;
-        input.mi.dwFlags = 0x0001;
-        input.mi.time = 0;
-        input.mi.dwExtraInfo = IntPtr.Zero;
-        SendInput(1, new INPUT[] { input }, Marshal.SizeOf(input));
+        get { return displayRequired; }
+        set 
+        { 
+            displayRequired = value; 
+            SetThreadExecutionState();
+        }
     }
 
-    public void SetThreadExecutionState()
+    public bool SystemRequired
+    {
+        get { return systemRequired; }
+        set 
+        { 
+            systemRequired = value; 
+            SetThreadExecutionState();
+        }
+    }
+
+    public void JiggleMouse(object sender, EventArgs e)
+    {
+        if (displayRequired)
+        {
+            INPUT input = new INPUT();
+            input.type = 0;
+            input.mi = new MOUSEINPUT();
+            input.mi.dx = 0;
+            input.mi.dy = 0;
+            input.mi.mouseData = 0;
+            input.mi.dwFlags = 0x0001;
+            input.mi.time = 0;
+            input.mi.dwExtraInfo = IntPtr.Zero;
+            SendInput(1, new INPUT[] { input }, Marshal.SizeOf(input));
+        }
+    }
+
+    private void SetThreadExecutionState()
     {
         EXECUTION_STATE esFlags = EXECUTION_STATE.ES_CONTINUOUS;
         if (displayRequired) esFlags |= EXECUTION_STATE.ES_DISPLAY_REQUIRED;
@@ -79,16 +102,34 @@ public class Caffeine
 }
 "@
 
-[Caffeine]::new() | Out-Null
-
 
 $Host.UI.RawUI.WindowTitle = "Caffeine"
+
+
+$caffeine = [Caffeine]::new()
 
 do {
 
     Clear-Host
+
     Write-Host
-    Write-Host "Caffeine is running and preventing the system from entering sleep or turning off the display.`r`n"
+    Write-Host "Caffeine is running and preventing the system from entering sleep or turning off the display."
+    Write-Host
+    Write-Host "1:  [ $(@({' '},{'X'})[$caffeine.DisplayRequired]) ]  Prevent the system from turning off the display."
+    Write-Host "2:  [ $(@({' '},{'X'})[$caffeine.SystemRequired]) ]  Prevent the system from entering sleep."
+    Write-Host
+    Write-Host
     Write-Host "Press 'Q' to quit . . . "
 
-} while ( ([System.Console]::ReadKey($true)).Key -ne "Q" )
+    $key = ([System.Console]::ReadKey($true)).Key
+
+    switch ($key)
+    {
+        'D1'      { $caffeine.DisplayRequired = -not $caffeine.DisplayRequired }
+        'NumPad1' { $caffeine.DisplayRequired = -not $caffeine.DisplayRequired }
+        'D2'      { $caffeine.SystemRequired  = -not $caffeine.SystemRequired  }
+        'NumPad2' { $caffeine.DisplayRequired = -not $caffeine.DisplayRequired }
+        'Q'       { $caffeine.DisplayRequired = $caffeine.SystemRequired = $false }
+    }
+
+} while ($key -ne "Q")
