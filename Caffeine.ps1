@@ -43,6 +43,8 @@ public class Caffeine
 
     public void JiggleMouse(object sender, EventArgs e)
     {
+        SetThreadExecutionState();
+
         if (displayRequired)
         {
             INPUT input = new INPUT();
@@ -115,8 +117,8 @@ do {
     Write-Host
     Write-Host "Caffeine is running and preventing the system from entering sleep or turning off the display."
     Write-Host
-    Write-Host "   1:  [ $(@(' ', 'X')[$caffeine.DisplayRequired]) ]  Prevent the system from turning off the display."
-    Write-Host "   2:  [ $(@(' ', 'X')[$caffeine.SystemRequired]) ]  Prevent the system from entering sleep."
+    Write-Host "   1:  [ $( if($caffeine.DisplayRequired) { 'X' } else { ' ' } ) ]  Prevent the system from turning off the display."
+    Write-Host "   2:  [ $( if($caffeine.SystemRequired)  { 'X' } else { ' ' } ) ]  Prevent the system from entering sleep."
     Write-Host
     Write-Host
     Write-Host "Press 'Q' to quit . . . "
