@@ -104,34 +104,75 @@ public class Caffeine
 }
 "@
 
-
-$Host.UI.RawUI.WindowTitle = "Caffeine"
-
-
 $caffeine = [Caffeine]::new()
 
-do {
 
-    Clear-Host
+[System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms')    | Out-Null
+[System.Reflection.Assembly]::LoadWithPartialName('System.Drawing')          | Out-Null
 
-    Write-Host
-    Write-Host "Caffeine is running and preventing the system from entering sleep or turning off the display."
-    Write-Host
-    Write-Host "   1:  [ $( if($caffeine.DisplayRequired) { 'X' } else { ' ' } ) ]  Prevent the system from turning off the display."
-    Write-Host "   2:  [ $( if($caffeine.SystemRequired)  { 'X' } else { ' ' } ) ]  Prevent the system from entering sleep."
-    Write-Host
-    Write-Host
-    Write-Host "Press 'Q' to quit . . . "
 
-    $key = ([System.Console]::ReadKey($true)).Key
+$folder = Split-Path $MyInvocation.MyCommand.Path
 
-    switch ($key)
-    {
-        'D1'      { $caffeine.DisplayRequired = -not $caffeine.DisplayRequired }
-        'NumPad1' { $caffeine.DisplayRequired = -not $caffeine.DisplayRequired }
-        'D2'      { $caffeine.SystemRequired  = -not $caffeine.SystemRequired  }
-        'NumPad2' { $caffeine.DisplayRequired = -not $caffeine.DisplayRequired }
-        'Q'       { $caffeine.DisplayRequired = $caffeine.SystemRequired = $false }
-    }
+ 
+$exit = New-Object System.Windows.Forms.ToolStripMenuItem
+$exit.Text = "Exit"
+$exit.add_Click( {
+    $notifyIcon.Visible = $false
+    Stop-Process $PID
+})
 
-} while ($key -ne "Q")
+$displayRequired = New-Object System.Windows.Forms.ToolStripMenuItem
+$displayRequired.Text = "Prevent the system from turning off the display."
+$displayRequired.Checked = $caffeine.DisplayRequired
+$displayRequired.CheckState = [System.Windows.Forms.CheckState]::Checked
+$displayRequired.add_Click( {
+    $caffeine.DisplayRequired = -not $caffeine.DisplayRequired
+    $displayRequired.Checked = $caffeine.DisplayRequired
+})
+
+$systemRequired = New-Object System.Windows.Forms.ToolStripMenuItem
+$systemRequired.Text = "Prevent the system from entering sleep."
+$systemRequired.Checked = $caffeine.SystemRequired
+$systemRequired.CheckState = [System.Windows.Forms.CheckState]::Checked
+$systemRequired.add_Click( {
+    $caffeine.SystemRequired = -not $caffeine.SystemRequired
+    $systemRequired.Checked = $caffeine.SystemRequired
+})
+
+
+$contextMenuStrip = New-Object System.Windows.Forms.ContextMenuStrip
+$contextMenuStrip.Items.AddRange( @(
+    $displayRequired,
+    $systemRequired,
+    (New-Object System.Windows.Forms.ToolStripSeparator),
+    $exit
+))
+
+
+$notifyIcon = New-Object System.Windows.Forms.NotifyIcon
+$notifyIcon.Text = "Caffeine"
+$notifyIcon.BalloonTipTitle = "Caffeine"
+$notifyIcon.BalloonTipText = "Caffeine is running and preventing the system from entering sleep or turning off the display."
+$notifyIcon.BalloonTipIcon = [System.Windows.Forms.ToolTipIcon]::Info
+$notifyIcon.Visible = $true
+$notifyIcon.Icon = [System.Drawing.Icon]::ExtractAssociatedIcon("$folder\Caffeine.ico")
+$notifyIcon.ContextMenuStrip = $contextMenuStrip
+
+$notifyIcon.ShowBalloonTip(5000);
+      
+
+$addTypeSplat = @{
+    MemberDefinition = '[DllImport("user32.dll")] public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);'
+    Name = "Win32ShowWindowAsync"
+    Namespace = 'Win32Functions'
+    PassThru = $true
+}
+$ShowWindowAsync = Add-Type @addTypeSplat
+
+$null = $ShowWindowAsync::ShowWindowAsync((Get-Process -Id $pid).MainWindowHandle, 0)
+
+[System.GC]::Collect()
+
+
+$appContext = New-Object System.Windows.Forms.ApplicationContext
+[void][System.Windows.Forms.Application]::Run($appContext)
